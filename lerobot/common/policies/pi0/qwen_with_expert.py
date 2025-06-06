@@ -541,8 +541,8 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         # self.kv_compress = nn.ModuleList([KVCompress(in_dim=4, out_dim=2) for _ in range(self.num_layers)])
         self.kv_repre = nn.ModuleList([KvRepresentation(hidden=128, in_head=[8, 4], out_head=2) for _ in range(self.num_layers)])
         
-        self.k_mask = nn.ParameterList([nn.Parameter(torch.ones(128*8*4)) for _ in range(self.num_layers)])
-        self.v_mask = nn.ParameterList([nn.Parameter(torch.ones(128*8*4)) for _ in range(self.num_layers)])
+        # self.k_mask = nn.ParameterList([nn.Parameter(torch.ones(128*8*4)) for _ in range(self.num_layers)])
+        # self.v_mask = nn.ParameterList([nn.Parameter(torch.ones(128*8*4)) for _ in range(self.num_layers)])
         
         # self.query_compress = nn.ModuleList([QueryCompression(in_dim=6, out_dim=4, hiddem_dim=128) for _ in range(self.num_layers)])
         # self.kv_compress = KVCompress(in_dim=4, out_dim=2)
@@ -1090,6 +1090,25 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         value = past_key_value[1].transpose(2, 1)
         # (batch_size, num_heads, seq_len, head_dim) -> (batch_size, seq_len, num_heads, head_dim)
         
+        # learned feats
+        # head_dim = key.shape[-1]
+        # scaling_factor = torch.sqrt(torch.tensor(head_dim, dtype=key.dtype, device=key.device))
+        # key_weight_awa = torch.einsum("b s a d, b s c d -> b s a c d", state_query, key) / scaling_factor # (batch_size, seq_len, head_dim, head_dim)
+        # value_weight_awa = torch.einsum("b s a d, b s c d -> b s a c d", state_query, value) / scaling_factor # (batch_size, seq_len, head_dim, head_dim)
+        # key_weight_awa_shape = key_weight_awa.shape # (batch_size, seq_len, head_dim, head_dim)
+        # key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
+        # value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
+        
+        # key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1)
+        # value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1)
+        # key_mask = self.k_mask[layer_idx].to(device=key_weight_awa.device).view(1, 1, -1)
+        # key_weight_awa = key_mask * key_weight_awa
+        # value_mask = self.v_mask[layer_idx].to(device=value_weight_awa.device).view(1, 1, -1)
+        # value_weight_awa = value_mask*value_weight_awa
+        # key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
+        # value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
+        
+        # topk
         head_dim = key.shape[-1]
         scaling_factor = torch.sqrt(torch.tensor(head_dim, dtype=key.dtype, device=key.device))
         key_weight_awa = torch.einsum("b s a d, b s c d -> b s a c d", state_query, key) / scaling_factor # (batch_size, seq_len, head_dim, head_dim)
@@ -1097,13 +1116,11 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         key_weight_awa_shape = key_weight_awa.shape # (batch_size, seq_len, head_dim, head_dim)
         key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
         value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
-        
-        key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1)
-        value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1)
-        key_weight_awa = self.k_mask[layer_idx].to(device=key_weight_awa.device)*key_weight_awa
-        value_weight_awa = self.v_mask[layer_idx].to(device=value_weight_awa.device)*value_weight_awa
-        key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
-        value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
+        weight_awa_threshold, weight_awa_index = torch.topk(key_weight_awa, k=12, dim=2, sorted=False)
+        filter_mask = torch.zeros_like(key_weight_awa, dtype=torch.bool, device=key_weight_awa.device)
+        filter_mask.scatter_(2, weight_awa_index, True)
+        key_weight_awa = key_weight_awa * filter_mask.to(key_weight_awa.dtype)
+        value_weight_awa = value_weight_awa * filter_mask.to(key_weight_awa.dtype)
         
         # weight_awa_threshold, weight_awa_index = torch.topk(key_weight_awa, k=self.config.topk, dim=2, sorted=False)
         # filter_mask = torch.zeros_like(key_weight_awa, dtype=torch.bool, device=key_weight_awa.device)
