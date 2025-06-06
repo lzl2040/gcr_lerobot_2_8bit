@@ -697,6 +697,7 @@ class QwenFlowMatching(nn.Module):
         if pixel_values is not None:
             pixel_values = pixel_values.type(self.dtype)
             image_grid_thw = image_grid_thw.type(torch.int32)
+            print(f"pixel_values shape:{pixel_values.shape}")
             image_embeds = self.paligemma_with_expert.custom_visual_forward(pixel_values, grid_thw=image_grid_thw)
             n_image_tokens = (input_ids == self.paligemma_with_expert.qwen25vl.config.image_token_id).sum().item()
             n_image_features = image_embeds.shape[0]
