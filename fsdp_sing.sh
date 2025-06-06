@@ -13,6 +13,7 @@ SCHEDULER_PLATFORM_STEPS=1
 PRETRAINED_PATH=""
 GRADIENT_ACCUMULATION_STEPS=4
 BATCH_SIZE=10
+SAVE_FREQ=5000
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -69,6 +70,10 @@ while [[ $# -gt 0 ]]; do
             BATCH_SIZE="$2"
             shift 2
             ;;
+        --save_freq)
+            BATCH_SIZE="$2"
+            shift 2
+            ;;
         --pre_path)
             PRETRAINED_PATH="$2"
             shift 2
@@ -107,6 +112,7 @@ torchrun \
     --batch_size=$BATCH_SIZE \
     --gradient_accumulation_steps=$GRADIENT_ACCUMULATION_STEPS \
     --data_mix=$DATA_MIX \
+    --save_freq=$SAVE_FREQ \
     --dataset.processor="/mnt/wangxiaofa/qwen_params/Qwen2.5-VL-7B-Instruct/" \
     --dataset.parent_dir="/mnt/wangxiaofa/robot_dataset/lerobot-format/" \
     --policy.scheduler_warmup_steps=$SCHEDULER_WARMUP_STEPS \
