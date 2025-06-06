@@ -71,7 +71,11 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --save_freq)
-            BATCH_SIZE="$2"
+            SAVE_FREQ="$2"
+            shift 2
+            ;;
+        --gradient_acc)
+            GRADIENT_ACCUMULATION_STEPS="$2"
             shift 2
             ;;
         --pre_path)
