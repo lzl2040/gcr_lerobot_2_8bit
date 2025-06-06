@@ -82,10 +82,6 @@ while [[ $# -gt 0 ]]; do
             PRETRAINED_PATH="$2"
             shift 2
             ;;
-        --grad_acc)
-            GRADIENT_ACCUMULATION_STEPS="$2"
-            shift 2
-            ;;
         *)
             echo "未知参数: $1"
             exit 1
