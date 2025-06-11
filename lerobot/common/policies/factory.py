@@ -184,7 +184,7 @@ def make_policy(
         for k in key_to_remove:
             del weights[k]
         
-        weights = pad_state_dict_with_mask(weights, policy, prefix="model.paligemma_with_expert")
+        # weights = pad_state_dict_with_mask(weights, policy, prefix="model.paligemma_with_expert")
         # keys_to_ignore = ['model.paligemma_with_expert.kv_repre']
         # filtered_state_dict = {k: v for k, v in weights.items() if k not in keys_to_ignore}
         policy.load_state_dict(weights, strict=False)

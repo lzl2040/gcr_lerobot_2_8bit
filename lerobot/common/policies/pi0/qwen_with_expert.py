@@ -471,19 +471,55 @@ class QueryCompression(nn.Module):
         x = x.reshape(x_shape[0], x_shape[1], self.out_dim, x_shape[-1])  # B L N* H
         
         return x
+    
+class KvLearnableMask(nn.Module):
+    def __init__(self, hidden=128, in_head=[6, 4]):
+        super().__init__()
+        self.k_mask = nn.Parameter(torch.ones(hidden*in_head[0]*in_head[1]))
+        self.v_mask = nn.Parameter(torch.ones(hidden*in_head[0]*in_head[1]))
+        
+        self.v_norm = Qwen2RMSNorm(hidden*in_head[0]*in_head[1])
+        self.k_norm = Qwen2RMSNorm(hidden*in_head[0]*in_head[1])
+        
+    def forward(self, k, v):
+        k_shape = k.shape
+        K_init = k.clone().reshape(k_shape[0], -1, k_shape[2]*k_shape[3]) # -> (batch_size, seq_len, head1*head2*head_dim)
+        V_init = v.clone().reshape(k_shape[0], -1, k_shape[2]*k_shape[3]) # -> (batch_size, seq_len, head1*head2*head_dim)
+        
+        k = k.reshape(k_shape[0], -1, k_shape[2]*k_shape[3]) # -> (batch_size, seq_len, head1*head2*head_dim)
+        v = v.reshape(k_shape[0], -1, k_shape[2]*k_shape[3]) # -> (batch_size, seq_len, head1*head2*head_dim)
+
+        k = k * self.k_mask
+        v = v * self.v_mask
+        
+        k = k + K_init
+        v = v + V_init
+        
+        k = self.k_norm(k)
+        v = self.v_norm(v)
+        
+        k = k.reshape(k_shape[0], k_shape[1], k_shape[2], k_shape[3]) # -> (batch_size, seq_len, head1, head_dim)
+        v = v.reshape(k_shape[0], k_shape[1], k_shape[2], k_shape[3]) # -> (batch_size, seq_len, head1, head_dim)
+        
+        return k, v
+        
+        
         
     
 class KvRepresentation(nn.Module):
     def __init__(self, hidden=128, in_head=[6, 4], out_head=2):
         super().__init__()
-        self.linear = nn.Linear(hidden*in_head[0]*in_head[1], hidden*in_head[1])
-        self.norm = Qwen2RMSNorm(hidden*in_head[1])
+        # self.linear = nn.Linear(hidden*in_head, hidden*in_head)
+        # self.norm = Qwen2RMSNorm(hidden*in_head)
         # self.activate_1 = nn.SiLU()
-        self.compress_to_tgtdim_v2 = nn.Linear(hidden*in_head[1], hidden*out_head)
         # self.linear1 = nn.Linear(hidden*in_head[0]*in_head[1], hidden*in_head[0]*in_head[1])
         # self.norm_1 = Qwen2RMSNorm(hidden*in_head[0]*in_head[1])
         
-        # self.compress_to_tgtdim = nn.Linear(hidden*in_head[0]*in_head[1], hidden*out_head)
+        self.linear_1 = nn.Linear(hidden*in_head[0]*in_head[1], hidden*in_head[1])
+        self.norm_1 = Qwen2RMSNorm(hidden*in_head[1])
+        self.norm_2 = Qwen2RMSNorm(hidden*in_head[1])
+        
+        self.compress_to_tgtdim = nn.Linear(hidden*in_head[1], hidden*out_head)
         self.linear_2 = nn.Linear(hidden*out_head, hidden*out_head)
         self.norm_3 = Qwen2RMSNorm(hidden*out_head)
         self.activate_3 = nn.SiLU()
@@ -491,17 +527,23 @@ class KvRepresentation(nn.Module):
         self.in_head = in_head
         self.out_head = out_head
         
-    def forward(self, x, skip_x):
+    def forward(self, x, x_ori):
         # x -> (batch_size, seq_len, head1*head2, head_dim)
         
         x = x.reshape(x.shape[0], -1, x.shape[2]*x.shape[3]) # -> (batch_size, seq_len, head1*head2*head_dim)
-        # y = x.clone()
-        x = self.linear(x) # -> [batch_size, seq_len, head2*head_dim]
-        x = self.norm(x)
-        # x = self.activate_1(x)
-        x = x + skip_x
+        x_ori = x_ori.reshape(x_ori.shape[0], -1, x_ori.shape[2]*x_ori.shape[3]) # -> (batch_size, seq_len, head1*head2*head_dim)
+        x = self.linear_1(x) # -> (batch_size, seq_len, head2*head_dim)
+        x = self.norm_1(x)
+        x = x + x_ori
+        x = self.norm_2(x)
         
-        x = self.compress_to_tgtdim_v2(x) # -> (batch_size, seq_len, head2*head_dim)
+        # y = x.clone()
+        # x = self.linear1(x) # -> [B, len, 128, 128]
+        # x = self.norm_1(x)
+        # x = self.activate_1(x)
+        # x = x + y
+        
+        x = self.compress_to_tgtdim(x) # -> (batch_size, seq_len, out_head*head_dim)
         # x = x.transpose(-1, -2) # -> [B, len, 2, 128]
         
         y = x.clone()
@@ -515,15 +557,7 @@ class KvRepresentation(nn.Module):
         x = x.view(x.shape[0], x.shape[1], self.out_head, -1) # -> (batch_size, seq_len, head_dim, out_head)
         
         return x
-
-class AdaptiveMask(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.k_mask = nn.Parameter(torch.ones(128*8*4))
-        self.v_mask = nn.Parameter(torch.ones(128*8*4))
-    
-    def forward(self, key, value):
-        return key * self.k_mask, value * self.v_mask
+        
 
 class PaliGemmaWithExpertModel(PreTrainedModel):
     config_class = PaliGemmaWithExpertConfig
@@ -548,9 +582,7 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         # self.kv_compress = nn.ModuleList([KVCompress(in_dim=4, out_dim=2) for _ in range(self.num_layers)])
         self.kv_repre = nn.ModuleList([KvRepresentation(hidden=128, in_head=[8, 4], out_head=2) for _ in range(self.num_layers)])
         
-        # self.k_mask = nn.ParameterList([nn.Parameter(torch.ones(128*8*4)) for _ in range(self.num_layers)])
-        # self.v_mask = nn.ParameterList([nn.Parameter(torch.ones(128*8*4)) for _ in range(self.num_layers)])
-        self.kv_mask = nn.ModuleList(AdaptiveMask() for _ in range(self.num_layers))
+        self.kv_mask = nn.ModuleList([KvLearnableMask(hidden=128, in_head=[8, 4]) for _ in range(self.num_layers)])
         
         # self.query_compress = nn.ModuleList([QueryCompression(in_dim=6, out_dim=4, hiddem_dim=128) for _ in range(self.num_layers)])
         # self.kv_compress = KVCompress(in_dim=4, out_dim=2)
@@ -1098,31 +1130,22 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         value = past_key_value[1].transpose(2, 1)
         # (batch_size, num_heads, seq_len, head_dim) -> (batch_size, seq_len, num_heads, head_dim)
         
-        # learned mask
         head_dim = key.shape[-1]
         scaling_factor = torch.sqrt(torch.tensor(head_dim, dtype=key.dtype, device=key.device))
         key_weight_awa = torch.einsum("b s a d, b s c d -> b s a c d", state_query, key) / scaling_factor # (batch_size, seq_len, head_dim, head_dim)
         value_weight_awa = torch.einsum("b s a d, b s c d -> b s a c d", state_query, value) / scaling_factor # (batch_size, seq_len, head_dim, head_dim)
         key_weight_awa_shape = key_weight_awa.shape # (batch_size, seq_len, head_dim, head_dim)
-        key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1)
-        value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1)
-        key_weight_awa, value_weight_awa = self.kv_mask[layer_idx](key_weight_awa, value_weight_awa)
         key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
         value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
         
-        # topk
-        # head_dim = key.shape[-1]
-        # scaling_factor = torch.sqrt(torch.tensor(head_dim, dtype=key.dtype, device=key.device))
-        # key_weight_awa = torch.einsum("b s a d, b s c d -> b s a c d", state_query, key) / scaling_factor # (batch_size, seq_len, head_dim, head_dim)
-        # value_weight_awa = torch.einsum("b s a d, b s c d -> b s a c d", state_query, value) / scaling_factor # (batch_size, seq_len, head_dim, head_dim)
-        # key_weight_awa_shape = key_weight_awa.shape # (batch_size, seq_len, head_dim, head_dim)
-        # key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
-        # value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
-        # weight_awa_threshold, weight_awa_index = torch.topk(key_weight_awa, k=12, dim=2, sorted=False)
-        # filter_mask = torch.zeros_like(key_weight_awa, dtype=torch.bool, device=key_weight_awa.device)
-        # filter_mask.scatter_(2, weight_awa_index, True)
-        # key_weight_awa = key_weight_awa * filter_mask.to(key_weight_awa.dtype)
-        # value_weight_awa = value_weight_awa * filter_mask.to(key_weight_awa.dtype)
+        key_weight_awa, value_weight_awa = self.kv_mask[layer_idx](key_weight_awa, value_weight_awa)
+        
+        # key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1)
+        # value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1)
+        # key_weight_awa = self.k_mask[layer_idx].to(device=key_weight_awa.device)*key_weight_awa
+        # value_weight_awa = self.v_mask[layer_idx].to(device=value_weight_awa.device)*value_weight_awa
+        key_weight_awa = key_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
+        value_weight_awa = value_weight_awa.view(key_weight_awa_shape[0], key_weight_awa_shape[1], -1, key_weight_awa_shape[4])
         
         # weight_awa_threshold, weight_awa_index = torch.topk(key_weight_awa, k=self.config.topk, dim=2, sorted=False)
         # filter_mask = torch.zeros_like(key_weight_awa, dtype=torch.bool, device=key_weight_awa.device)
@@ -1131,8 +1154,6 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         # value_weight_awa = value_weight_awa * filter_mask.to(key_weight_awa.dtype)
         # (batch_size, seq_len, head1*head2, head_dim)
         
-        key = key.view(key.shape[0], key.shape[1], -1)
-        value = value.view(value.shape[0], value.shape[1], -1)
         key_awa = self.kv_repre[layer_idx](key_weight_awa, key).transpose(2, 1)
         value_awa = self.kv_repre[layer_idx](value_weight_awa, value).transpose(2, 1)
         # (batch_size, seq_len, num_heads, head_dim)

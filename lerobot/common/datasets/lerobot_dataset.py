@@ -858,10 +858,10 @@ class LeRobotDataset(torch.utils.data.Dataset):
         if self.image_transforms is not None:
             image_keys = self.meta.camera_keys
             for cam in image_keys:
-                if "wrist" in cam:
-                    item[cam] = self.wrist_image_transforms(item[cam])
-                else:
-                    item[cam] = self.image_transforms(item[cam])
+                # if "wrist" in cam:
+                #     item[cam] = self.wrist_image_transforms(item[cam])
+                # else:
+                item[cam] = self.image_transforms(item[cam])
 
         # Add task as a string
         task_idx = item["task_index"].item()
@@ -1435,8 +1435,10 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
             self.num_episodes = 0
             self.dataset_len = 0
             dataset_id = 0
-            for dataset in self.datasets:
+            for i in range(len(self.datasets)):
+                dataset = self.datasets[i]
                 num_frames = dataset.num_frames
+                print(f"Dataset {dataset.dataset_name} has {num_frames} frames.")
                 self.dataset_len += num_frames
                 num_episodes = dataset.num_episodes
                 self.num_episodes += num_episodes
