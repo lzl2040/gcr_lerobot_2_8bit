@@ -32,6 +32,8 @@
     "libero_object_no_noops": "libero_object_no_noops_lerobot",
     "libero_10_no_noops" : "libero_10_no_noops_lerobot",
     "simpler_fractal" : "simpler_fractal_v2",
+    "simpler_fractal_sub1" : "simpler_fractal_sub1",
+    "simpler_fractal_sub2" : "simpler_fractal_sub2",
     "simpler_bridge" : "simpler_bridge_v3",
     "calvin_abc_d" : "calvin_task_ABC_D_training",
     "pizza": "pizza"
