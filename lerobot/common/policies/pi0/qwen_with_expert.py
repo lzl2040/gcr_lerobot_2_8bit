@@ -519,7 +519,7 @@ class KvRepresentation(nn.Module):
         self.norm_1 = Qwen2RMSNorm(hidden*in_head[1])
         self.norm_2 = Qwen2RMSNorm(hidden*in_head[1])
         
-        self.compress_to_tgtdim_v2 = nn.Linear(hidden*in_head[1], hidden*out_head)
+        self.compress_to_tgtdim = nn.Linear(hidden*in_head[1], hidden*out_head)
         self.linear_2 = nn.Linear(hidden*out_head, hidden*out_head)
         self.norm_3 = Qwen2RMSNorm(hidden*out_head)
         self.activate_3 = nn.SiLU()
@@ -543,7 +543,7 @@ class KvRepresentation(nn.Module):
         # x = self.activate_1(x)
         # x = x + y
         
-        x = self.compress_to_tgtdim_v2(x) # -> (batch_size, seq_len, out_head*head_dim)
+        x = self.compress_to_tgtdim(x) # -> (batch_size, seq_len, out_head*head_dim)
         # x = x.transpose(-1, -2) # -> [B, len, 2, 128]
         
         y = x.clone()
