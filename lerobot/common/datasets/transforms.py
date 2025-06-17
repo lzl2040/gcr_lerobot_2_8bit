@@ -201,7 +201,7 @@ class ImageTransformsConfig:
             self.tfs["crop_resize"] = ImageTransformConfig(
                 weight=1.0,
                 type="RandomResizedCrop",
-                kwargs={"size": (200, 200), "scale": (0.9, 0.95), "ratio": (1.0, 1.0)},
+                kwargs={"size": (256, 256), "scale": (0.9, 0.95), "ratio": (1.0, 1.0)},
             )
             self.tfs["rotate"] = ImageTransformConfig(
                 weight=1.0,
