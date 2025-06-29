@@ -131,4 +131,4 @@ torchrun \
     --wandb.project="fsdq_qwen_pi0_ft" \
     --job_name="$JOB_NAME" \
     --log_dir="/mnt/wangxiaofa/logs" \
-    --resume=true
+    --resume=false
