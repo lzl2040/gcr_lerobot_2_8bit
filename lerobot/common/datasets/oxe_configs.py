@@ -770,6 +770,13 @@ OXE_DATASET_CONFIGS = {
         "state_encoding": StateEncoding.POS_QUAT,
         "action_encoding": ActionEncoding.EEF_POS,
     },
+    "simpler_fractal_sub2_plus": {
+        "image_obs_keys": {"primary": "primary", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "state_obs_keys": ["EEF_state", None, "gripper_state"],
+        "state_encoding": StateEncoding.POS_QUAT,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
     # Calvin
     "calvin_abc_d": {
         "image_obs_keys": {"primary": "primary", "secondary": None, "wrist": "secondary"},
