@@ -1513,7 +1513,7 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
         self.stats = aggregate_multi_stats(self.datasets, self.dataset_names, self.max_action_dim) # Note: I modified this function
         # save_to_json(self.stats, os.path.join("/home/v-wangxiaofa/lzl/gcr_lerobot_2_fsdp/lerobot/stats", f"{cfg.data_mix}_stats.json"))
         save_to_json(self.stats, os.path.join("/mnt/wangxiaofa/original_qw", f"{cfg.data_mix}_stats.json"))
-        # print(f"Aggregated stats:{self.stats}")
+        print(f"Aggregated stats:{self.stats}")
         # update meta_features
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] - meta features: {meta_features}")
         new_obs_image_keys = []
