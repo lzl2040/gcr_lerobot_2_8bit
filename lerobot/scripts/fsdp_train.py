@@ -546,7 +546,7 @@ if __name__ == "__main__":
     # os.environ["TOKENIZERS_PARALLELISM"] = "false"
     # os.environ["OMPI_ALLOW_RUN_AS_ROOT"] = "1"
     # os.environ["OMPI_ALLOW_RUN_AS_ROOT_CONFIRM"] = "1"
-    # os.environ['WANDB_API_KEY'] = '9e1c3ac77856b8ebb5573c4e1e250c84aabfb904'
+    os.environ['WANDB_API_KEY'] = '9e1c3ac77856b8ebb5573c4e1e250c84aabfb904'
     
     # 启动训练
     train()
