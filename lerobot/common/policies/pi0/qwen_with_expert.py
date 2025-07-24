@@ -609,22 +609,7 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         del self.awa_model.lm_head
         del self.qwen_expert.lm_head
         
-        
         self.use_lora = global_config.use_lora
-        if self.use_lora:
-            print(f"Using LoRA with rank {global_config.lora_rank}")
-            lora_config = LoraConfig(
-                r=global_config.lora_rank,
-                lora_alpha=min(16, global_config.lora_rank),
-                target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],  # 根据需要修改
-                lora_dropout=0.0,
-                init_lora_weights="gaussian",
-            )
-            self.qwen25vl = get_peft_model(self.qwen25vl, lora_config)
-            self.qwen_expert = get_peft_model(self.qwen_expert, lora_config)
-            self.awa_model = get_peft_model(self.awa_model, lora_config)
-            # print(self.qwen25vl.base_model.model.model.embed_tokens)
-            # print(self.qwen25vl.model.model.embed_tokens)
         
         # Remove unused embed_tokens
         self.qwen_expert.model.embed_tokens = None
@@ -681,8 +666,21 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
             self.qwen25vl.visual.train()
             for name, params in self.qwen25vl.visual.named_parameters():
                 params.requires_grad = True
-        
+
+    def add_lora(self):
         if self.use_lora:
+            print(f"Using LoRA with rank {self.global_config.lora_rank}")
+            lora_config = LoraConfig(
+                r=self.global_config.lora_rank,
+                lora_alpha=min(16, self.global_config.lora_rank),
+                target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],  # 根据需要修改
+                lora_dropout=0.0,
+                init_lora_weights="gaussian",
+            )
+            self.qwen25vl = get_peft_model(self.qwen25vl, lora_config)
+            self.qwen_expert = get_peft_model(self.qwen_expert, lora_config)
+            self.awa_model = get_peft_model(self.awa_model, lora_config)
+            
             print("Using LoRA, setting requires_grad to False for qwen25vl and qwen_expert, awa_model")
             for name, params in self.qwen25vl.named_parameters():
                 if "lora" not in name:
@@ -701,7 +699,7 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
                     params.requires_grad = False
                 else:
                     params.requires_grad = True
-
+    
     def train(self, mode: bool = True):
         super().train(mode)
 

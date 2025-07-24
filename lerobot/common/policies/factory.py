@@ -192,6 +192,9 @@ def make_policy(
         del weights
         del key_to_remove
     
+    
+    if cfg.use_lora:
+        policy.model.paligemma_with_expert.add_lora()
     # policy.to(device)
     assert isinstance(policy, nn.Module)
 

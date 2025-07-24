@@ -34,6 +34,8 @@ from torch.distributed.fsdp import (
     MixedPrecision,
     ShardingStrategy,
 )
+
+FSDP.__repr__ = lambda self: "FSDP(...)"
 from torch.distributed.fsdp.wrap import (
     transformer_auto_wrap_policy,
     size_based_auto_wrap_policy,
@@ -312,6 +314,11 @@ def train(cfg: TrainPipelineConfig):
         )
 
         logger.info(f"LoRA parameters: {lora_params:,} ({lora_params / 1e6:.2f}M)")
+        
+        trainable_params = sum(
+            p.numel() for p in policy.parameters() if p.requires_grad
+        )
+        logger.info(f"Trainable parameters: {trainable_params:,} ({trainable_params / 1e6:.2f}M)")
        
     # 训练状态初始化
     if cfg.resume:
@@ -539,7 +546,7 @@ if __name__ == "__main__":
     # os.environ["TOKENIZERS_PARALLELISM"] = "false"
     # os.environ["OMPI_ALLOW_RUN_AS_ROOT"] = "1"
     # os.environ["OMPI_ALLOW_RUN_AS_ROOT_CONFIRM"] = "1"
-    os.environ['WANDB_API_KEY'] = '9e1c3ac77856b8ebb5573c4e1e250c84aabfb904'
+    # os.environ['WANDB_API_KEY'] = '9e1c3ac77856b8ebb5573c4e1e250c84aabfb904'
     
     # 启动训练
     train()
