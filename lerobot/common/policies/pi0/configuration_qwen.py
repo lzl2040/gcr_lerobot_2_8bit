@@ -26,8 +26,7 @@ class QwenConfig(PreTrainedConfig):
     topk: int = 8
     # lora
     use_lora: bool = True
-    lora_rank: int = 64
-    lora_alpha: int = 16
+    lora_rank: int = 32
 
     normalization_mapping: dict[str, NormalizationMode] = field(
         default_factory=lambda: {

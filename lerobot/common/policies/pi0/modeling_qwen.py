@@ -633,7 +633,9 @@ class QwenFlowMatching(nn.Module):
     └──────────────────────────────┘
     """
 
-    def __init__(self, config: QwenConfig, init_load = False, init_path = None):
+    def __init__(self, config: QwenConfig,
+                 init_load = False, 
+                 init_path = None):
         super().__init__()
         self.config = config
         
@@ -646,7 +648,10 @@ class QwenFlowMatching(nn.Module):
             train_main_layers=self.config.train_main_layers,
             topk=self.config.topk,
         )
-        self.paligemma_with_expert = PaliGemmaWithExpertModel(paligemma_with_export_config, init_load = init_load, init_path = init_path)
+        self.paligemma_with_expert = PaliGemmaWithExpertModel(paligemma_with_export_config, 
+                                                              global_config=config,
+                                                              init_load = init_load, 
+                                                              init_path = init_path)
 
         # Projections are float32
         state_proj_width = paligemma_with_export_config.awa_model_config.hidden_size
@@ -692,7 +697,12 @@ class QwenFlowMatching(nn.Module):
         for PaliGemma transformer processing.
         """
         input_ids = input_ids.to(device=self.paligemma_with_expert.qwen25vl.device)
-        inputs_embeds = self.paligemma_with_expert.qwen25vl.model.embed_tokens(input_ids)
+        # print(type(self.paligemma_with_expert.qwen25vl.model))
+        if self.config.use_lora:
+            inputs_embeds = self.paligemma_with_expert.qwen25vl.model.model.embed_tokens(input_ids)
+        else:
+            inputs_embeds = self.paligemma_with_expert.qwen25vl.model.embed_tokens(input_ids)
+        # inputs_embeds = self.paligemma_with_expert.embed_tokens(input_ids)
         
         if pixel_values is not None:
             pixel_values = pixel_values.type(self.dtype)

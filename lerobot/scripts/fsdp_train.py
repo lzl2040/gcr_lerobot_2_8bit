@@ -104,7 +104,21 @@ def save_fsdp_checkpoint(model, optim, output_dir, step):
 
     # 所有进程统一进入状态字典收集阶段
     with FSDP.state_dict_type(model, save_policy, full_state_dict_config):
+        # lora_qwen25vl = model.model.paligemma_with_expert.qwen25vl.model
+        # lora_awa_model = model.model.paligemma_with_expert.awa_model.model
+        # lora_qwen_expert = model.model.paligemma_with_expert.qwen_expert.model
+        # merge_qwen25vl = lora_qwen25vl.merge_and_unload()
+        # merge_awa_model = lora_awa_model.merge_and_unload()
+        # merge_qwen_expert = lora_qwen_expert.merge_and_unload()
+        # model.model.paligemma_with_expert.qwen25vl = merge_qwen25vl
+        # model.model.paligemma_with_expert.awa_model = merge_awa_model
+        # model.model.paligemma_with_expert.qwen_expert = merge_qwen_expert
+        
         model_state_dict = model.state_dict()
+        # 恢复 LoRA 模型
+        # model.model.paligemma_with_expert.qwen25vl = lora_qwen25vl
+        # model.model.paligemma_with_expert.awa_model = lora_awa_model
+        # model.model.paligemma_with_expert.qwen_expert = lora_qwen_expert
     
     # 所有进程同步，防止部分进程提前退出
     dist.barrier()
@@ -291,7 +305,14 @@ def train(cfg: TrainPipelineConfig):
         logger.info(f"kv repre model parameters: {sum(p.numel() for p in policy.model.paligemma_with_expert.kv_repre.parameters())}")
         logger.info(f"AWA Expert parameters: {sum(p.numel() for p in policy.model.paligemma_with_expert.awa_model.parameters())}")
         logger.info(f"Action Expert parameters: {sum(p.numel() for p in policy.model.paligemma_with_expert.qwen_expert.parameters())}")
-    
+        lora_params = sum(
+            p.numel()
+            for name, p in policy.model.named_parameters()
+            if "lora" in name.lower()
+        )
+
+        logger.info(f"LoRA parameters: {lora_params:,} ({lora_params / 1e6:.2f}M)")
+       
     # 训练状态初始化
     if cfg.resume:
         if pts:
@@ -486,8 +507,6 @@ def train(cfg: TrainPipelineConfig):
             if lr_scheduler is not None:
                 lr_scheduler.step()
         
-        
-        
         # 日志记录
         if step % cfg.log_freq == 0:
             dist.barrier(device_ids=[local_rank])
@@ -503,6 +522,9 @@ def train(cfg: TrainPipelineConfig):
         
         # 保存检查点
         if step % cfg.save_freq == 0:
+        # if step % 5 == 0:
+            print("save")
+            # cfg.output_dir
             save_fsdp_checkpoint(model, optimizer, cfg.output_dir, step)
         
         step += 1

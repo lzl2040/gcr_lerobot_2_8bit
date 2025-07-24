@@ -23,6 +23,7 @@ from transformers.modeling_flash_attention_utils import FlashAttentionKwargs
 from transformers.models.auto import CONFIG_MAPPING
 from transformers.cache_utils import DynamicCache
 from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS
+from peft import get_peft_model, LoraConfig, TaskType
 from torch.utils.checkpoint import checkpoint
 
 from lerobot.common.policies.pi0.flex_attention import flex_attention_forward
@@ -559,13 +560,29 @@ class KvRepresentation(nn.Module):
         return x
         
 
+class Embedding(nn.Module):
+    def __init__(self, embed_tokens):
+        self.embed_tokens = embed_tokens
+    
+    def forward(self, input_ids):
+        """
+        input_ids: [batch_size, seq_len]
+        """
+        # print(input_ids.shape)
+        # print(self.embed_tokens.weight.shape)
+        return self.embed_tokens(input_ids)
+
 class PaliGemmaWithExpertModel(PreTrainedModel):
     config_class = PaliGemmaWithExpertConfig
 
-    def __init__(self, config: PaliGemmaWithExpertConfig, init_load = False, init_path = None):
+    def __init__(self, config: PaliGemmaWithExpertConfig, 
+                 global_config: PretrainedConfig,
+                 init_load = False, 
+                 init_path = None):
         super().__init__(config=config)
         self.cross_forward_flag = True
         self.config = config
+        self.global_config = global_config
         self.gradient_checkpointing = True
         # print(config.qwen25vl_config)
         # print(config.qwenexp_config)
@@ -575,6 +592,8 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
             self.qwen25vl = Qwen2_5_VLForConditionalGeneration(config=config.qwen25vl_config)
         else:
             self.qwen25vl = Qwen2_5_VLForConditionalGeneration.from_pretrained(init_path)
+        
+        # self.embed_tokens = Embedding(self.qwen25vl.model.embed_tokens)
         self.qwen_expert = Qwen2ForCausalLM(config=config.qwenexp_config)
         # self.awa_model = Qwen2ForCausalLM(config=config.awa_model_config)
         
@@ -589,6 +608,23 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         self.awa_model = Qwen2ForCausalLM(config=config.awa_model_config)
         del self.awa_model.lm_head
         del self.qwen_expert.lm_head
+        
+        
+        self.use_lora = global_config.use_lora
+        if self.use_lora:
+            print(f"Using LoRA with rank {global_config.lora_rank}")
+            lora_config = LoraConfig(
+                r=global_config.lora_rank,
+                lora_alpha=min(16, global_config.lora_rank),
+                target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],  # 根据需要修改
+                lora_dropout=0.0,
+                init_lora_weights="gaussian",
+            )
+            self.qwen25vl = get_peft_model(self.qwen25vl, lora_config)
+            self.qwen_expert = get_peft_model(self.qwen_expert, lora_config)
+            self.awa_model = get_peft_model(self.awa_model, lora_config)
+            # print(self.qwen25vl.base_model.model.model.embed_tokens)
+            # print(self.qwen25vl.model.model.embed_tokens)
         
         # Remove unused embed_tokens
         self.qwen_expert.model.embed_tokens = None
@@ -631,7 +667,8 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         else:
             print("Training qwen25vl")
             self.qwen25vl.train()
-            for params in self.qwen25vl.parameters():
+            for name, params in self.qwen25vl.named_parameters():
+                # print(params)
                 params.requires_grad = True
                         
         if self.config.freeze_vision_encoder:
@@ -642,8 +679,28 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
         else:
             print("Training vision encoder")
             self.qwen25vl.visual.train()
-            for params in self.qwen25vl.visual.parameters():
+            for name, params in self.qwen25vl.visual.named_parameters():
                 params.requires_grad = True
+        
+        if self.use_lora:
+            print("Using LoRA, setting requires_grad to False for qwen25vl and qwen_expert, awa_model")
+            for name, params in self.qwen25vl.named_parameters():
+                if "lora" not in name:
+                    params.requires_grad = False
+                else:
+                    params.requires_grad = True
+            
+            for name, params in self.qwen_expert.named_parameters():
+                if "lora" not in name:
+                    params.requires_grad = False
+                else:
+                    params.requires_grad = True
+            
+            for name, params in self.awa_model.named_parameters():
+                if "lora" not in name:
+                    params.requires_grad = False
+                else:
+                    params.requires_grad = True
 
     def train(self, mode: bool = True):
         super().train(mode)
@@ -759,8 +816,10 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
             past_key_values=past_key_values,
             inputs_embeds=inputs_embeds
         )
-        
-        models = [self.qwen25vl.model, self.awa_model.model, self.qwen_expert.model]
+        if self.global_config.use_lora:
+            models = [self.qwen25vl.model.model, self.awa_model.model.model, self.qwen_expert.model.model]
+        else:
+            models = [self.qwen25vl.model, self.awa_model.model, self.qwen_expert.model]
         
         hidden_states = inputs_embeds
                 
@@ -808,7 +867,10 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
                                                         position_embeddings_exp=position_embeddings_exp
                                                         )
         hidden_state_vl, hidden_state_awa, hidden_state_exp = hidden_states
-        hidden_state_exp = self.qwen_expert.model.norm(hidden_state_exp)
+        if self.global_config.use_lora:
+            hidden_state_exp = self.qwen_expert.model.model.norm(hidden_state_exp)
+        else:
+            hidden_state_exp = self.qwen_expert.model.norm(hidden_state_exp)
         
         return hidden_state_vl, hidden_state_awa, hidden_state_exp, None
     
@@ -834,13 +896,20 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
             position_ids = cache_position_vl.view(1, 1, -1).expand(3, inputs_embeds_vl.shape[0], -1)
         elif position_ids.dim() == 2:
             position_ids = position_ids[None, ...].expand(3, position_ids.shape[0], -1)
-
-        causal_mask_vl = self.qwen25vl.model._update_causal_mask(
-            attention_mask, inputs_embeds_vl, cache_position_vl, past_key_values, output_attentions
-        )
         
-        # create position embeddings to be shared across the decoder layers
-        position_embeddings_vl = self.qwen25vl.model.rotary_emb(inputs_embeds_vl, position_ids)
+        if self.global_config.use_lora:
+            causal_mask_vl = self.qwen25vl.model.model._update_causal_mask(
+                attention_mask, inputs_embeds_vl, cache_position_vl, past_key_values, output_attentions
+            )
+            # create position embeddings to be shared across the decoder layers
+            position_embeddings_vl = self.qwen25vl.model.model.rotary_emb(inputs_embeds_vl, position_ids)
+        else:
+            causal_mask_vl = self.qwen25vl.model._update_causal_mask(
+                attention_mask, inputs_embeds_vl, cache_position_vl, past_key_values, output_attentions
+            )
+        
+            # create position embeddings to be shared across the decoder layers
+            position_embeddings_vl = self.qwen25vl.model.rotary_emb(inputs_embeds_vl, position_ids)
         
         sample_key_values = DynamicCache()
         seq_len = inputs_embeds_vl.shape[1]
@@ -859,10 +928,16 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
                 past_seen_tokens, past_seen_tokens + inputs_embeds_awa.shape[1], device=inputs_embeds_awa.device
             )
         position_ids_awa = cache_position_awa.unsqueeze(0)
-        causal_mask_awa = self.awa_model.model._update_causal_mask(
+        if self.global_config.use_lora:
+            causal_mask_awa = self.awa_model.model.model._update_causal_mask(
                 attention_mask, inputs_embeds_awa, cache_position_awa, sample_key_values, output_attentions
             )
-        position_embeddings_awa = self.awa_model.model.rotary_emb(inputs_embeds_awa, position_ids_awa)
+            position_embeddings_awa = self.awa_model.model.model.rotary_emb(inputs_embeds_awa, position_ids_awa)
+        else:
+            causal_mask_awa = self.awa_model.model._update_causal_mask(
+                    attention_mask, inputs_embeds_awa, cache_position_awa, sample_key_values, output_attentions
+                )
+            position_embeddings_awa = self.awa_model.model.rotary_emb(inputs_embeds_awa, position_ids_awa)
         
         # prepare inputs for expert model
         inputs_embeds_exp = inputs_embeds[2]
@@ -871,10 +946,16 @@ class PaliGemmaWithExpertModel(PreTrainedModel):
                 past_seen_tokens, past_seen_tokens + inputs_embeds_exp.shape[1], device=inputs_embeds_exp.device
             )
         position_ids_exp = cache_position_exp.unsqueeze(0)
-        causal_mask_exp = self.qwen_expert.model._update_causal_mask(
+        if self.global_config.use_lora:
+            causal_mask_exp = self.qwen_expert.model.model._update_causal_mask(
                 attention_mask, inputs_embeds_exp, cache_position_exp, sample_key_values, output_attentions
-        )
-        position_embeddings_exp = self.qwen_expert.model.rotary_emb(inputs_embeds_exp, position_ids_exp)
+            )
+            position_embeddings_exp = self.qwen_expert.model.model.rotary_emb(inputs_embeds_exp, position_ids_exp)
+        else:
+            causal_mask_exp = self.qwen_expert.model._update_causal_mask(
+                    attention_mask, inputs_embeds_exp, cache_position_exp, sample_key_values, output_attentions
+            )
+            position_embeddings_exp = self.qwen_expert.model.rotary_emb(inputs_embeds_exp, position_ids_exp)
         
         
         return output_attentions, output_hidden_states, use_cache, return_dict, position_ids, cache_position_vl, causal_mask_vl, position_embeddings_vl, cache_position_awa, position_ids_awa, causal_mask_awa, position_embeddings_awa, cache_position_exp, position_ids_exp, causal_mask_exp, position_embeddings_exp

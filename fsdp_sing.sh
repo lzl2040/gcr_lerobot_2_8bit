@@ -7,13 +7,14 @@ JOB_NAME=""
 DATA_MIX="oxe_magic_soup_plus"
 OPTIMIZER_LR=2.5e-5
 OPTIMIZER_DECAY_LR=2.5e-6
-SCHEDULER_WARMUP_STEPS=1000
-SCHEDULER_DECAY_STEPS=30000
+SCHEDULER_WARMUP_STEPS=2000
+SCHEDULER_DECAY_STEPS=60000
 SCHEDULER_PLATFORM_STEPS=1
 PRETRAINED_PATH=""
 GRADIENT_ACCUMULATION_STEPS=4
 BATCH_SIZE=10
 SAVE_FREQ=5000
+USE_LORA=false
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -70,6 +71,10 @@ while [[ $# -gt 0 ]]; do
             BATCH_SIZE="$2"
             shift 2
             ;;
+        --use_lora)
+            USE_LORA="$2"
+            shift 2
+            ;;
         --save_freq)
             SAVE_FREQ="$2"
             shift 2
@@ -107,6 +112,7 @@ torchrun \
     --master_port=$MASTER_PORT \
     lerobot/scripts/fsdp_train.py \
     --policy.type="qwen" \
+    --policy.use_lora=$USE_LORA \
     --output_dir="$FIXED_OUTPUT_DIR" \
     --dataset.repo_id="whatever" \
     --dataset.image_transforms.enable=false \
