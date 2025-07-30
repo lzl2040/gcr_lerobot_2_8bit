@@ -73,7 +73,7 @@ class QwenConfig(PreTrainedConfig):
     # optimizer_beta2_decay: float = -0.8
     # optimizer_eps: tuple[float | None, float] = (None, 0.001)
     # optimizer_d: float = 1.0
-    optimizer_weight_decay: float = 1e-2
+    optimizer_weight_decay: float = 1e-10
     
     optimizer_eps: float = 1e-8
     optimizer_betas: tuple[float, float] = (0.9, 0.95)
