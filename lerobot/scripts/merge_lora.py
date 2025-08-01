@@ -289,9 +289,9 @@ def train(cfg: TrainPipelineConfig):
     logger.info("Still creating policy...")
     
     
-    weight_root = "/mnt/wangxiaofa/original_qw/0724_exp+01_robotics_df100_full_ft_pizza_task_5"
+    weight_root = "/mnt/wangxiaofa/original_qw/0730_exp+01_robotics_df100_full_ft_pizza_task5_wd_1e-10_w_aug"
     
-    for step in range(1000, 10000, 1000):
+    for step in range(1000, 20000, 1000):
         weight_path = os.path.join(weight_root, f"step{step}.pt")
         logger.info(f"Loading weights from {weight_path}")
         weights = torch.load(weight_path, map_location="cpu") 
