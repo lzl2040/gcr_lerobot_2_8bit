@@ -21,7 +21,7 @@ class QwenConfig(PreTrainedConfig):
     chunk_size: int = 50
     n_action_steps: int = 50
     
-    max_frame: int = 3
+    max_frame: int = 15
     
     topk: int = 8
     # lora
