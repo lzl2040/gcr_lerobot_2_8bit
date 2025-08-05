@@ -1514,8 +1514,8 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
         # save_to_json(self.stats, os.path.join("/home/v-wangxiaofa/lzl/gcr_lerobot_2_fsdp/lerobot/stats", f"{cfg.data_mix}_stats.json"))
         save_to_json(self.stats, os.path.join("/mnt/wangxiaofa/original_qw", f"{cfg.data_mix}_stats.json"))
         # remove state
-        self.stats["observation.state"]["mean"][:] = 0
-        self.stats["observation.state"]["std"][:] = 1
+        # self.stats["observation.state"]["mean"][:] = 0
+        # self.stats["observation.state"]["std"][:] = 1
         
         print(f"Aggregated stats:{self.stats}")
         # update meta_features
@@ -1595,7 +1595,7 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
                 item = selected_dataset[selected_id]
                 item['dataset_name'] = dataset_name
             
-            item["observation.state"][:] = 1
+            # item["observation.state"][:] = 1
             
             data_dict = self._fetch_data_dict(item, image_obs_keys)
             
