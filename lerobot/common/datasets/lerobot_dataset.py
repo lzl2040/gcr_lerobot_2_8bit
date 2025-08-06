@@ -850,6 +850,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 
                 is_pad_tensor = padding[f"action_is_pad"]
                 total_true_count = is_pad_tensor.sum().item()
+                print(total_true_count)
                 if total_true_count > 4:
                     need_skip = True
                     idx = random.randint(0, len(self.hf_dataset) - 1)
