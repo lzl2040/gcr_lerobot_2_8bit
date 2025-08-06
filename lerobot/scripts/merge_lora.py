@@ -288,10 +288,17 @@ def train(cfg: TrainPipelineConfig):
         cfg.policy.tokenizer_max_length=100
     logger.info("Still creating policy...")
     
+    # policy = make_policy(
+    #     cfg=cfg.policy,
+    #     device="cpu",
+    #     ds_meta=dataset.meta,
+    #     weight_pt_path=cfg.policy.pretrained_path
+    # )
     
-    weight_root = "/mnt/wangxiaofa/original_qw/0729_exp+01_robotics_df100_full_ft_pizza_task_9_sep1_wd_1e-10_w_aug/"
     
-    for step in range(1000, 20000, 1000):
+    weight_root = "/mnt/wangxiaofa/original_qw/0731_exp+01_robotics_df100_full_ft_pizza_task_9_sep2_r2_wd_1e-10_w_aug"
+    
+    for step in range(1000, 30000, 1000):
         weight_path = os.path.join(weight_root, f"step{step}.pt")
         logger.info(f"Loading weights from {weight_path}")
         weights = torch.load(weight_path, map_location="cpu") 
