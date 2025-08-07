@@ -296,9 +296,9 @@ def train(cfg: TrainPipelineConfig):
     # )
     
     
-    weight_root = "/mnt/wangxiaofa/original_qw/0731_exp+01_robotics_df100_full_ft_pizza_task_9_sep2_r2_wd_1e-10_w_aug"
+    weight_root = "/mnt/wangxiaofa/original_qw/0806_exp+01_robotics_df100_full_ft_pizza_task_5_v1_wd_1e-10_w_aug"
     
-    for step in range(1000, 30000, 1000):
+    for step in range(500, 10000, 500):
         weight_path = os.path.join(weight_root, f"step{step}.pt")
         logger.info(f"Loading weights from {weight_path}")
         weights = torch.load(weight_path, map_location="cpu") 

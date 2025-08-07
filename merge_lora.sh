@@ -9,7 +9,7 @@ python lerobot/scripts/merge_lora.py \
     --dataset.wrist_image_transforms.is_primary=false \
     --dataset.processor="/mnt/wangxiaofa/qwen_params/Qwen2.5-VL-7B-Instruct/" \
     --dataset.parent_dir="/mnt/wangxiaofa/robot_dataset/lerobot-format/" \
-    --data_mix="pizza_task_9_sep1" \
+    --data_mix="pizza_task_5" \
     --dataset.sample_ratio=5 \
     --output_dir="qwen_flow" \
     --batch_size=1 \
@@ -24,6 +24,6 @@ python lerobot/scripts/merge_lora.py \
     --policy.train_from_scratch=true \
     --wandb.project="fsdp_qwen_pi0_ft" \
     --job_name="debug_simpler_bridge" \
-    --policy.pretrained_path="/Data/lzl/qwen-pi0-ft-real/step3200.pt" \
     --wandb.enable=false \
+    # --policy.pretrained_path="/Data/lzl/qwen-pi0-ft-real/step3200.pt" \
     # --policy.pretrained_path="/Data/lzl/qwen-pi0-ft-simulated/0604-pt-85k-3-frame-libero-w-img-aug/step60000.pt" \
