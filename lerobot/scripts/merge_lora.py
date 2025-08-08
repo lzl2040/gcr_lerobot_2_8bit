@@ -297,11 +297,13 @@ def train(cfg: TrainPipelineConfig):
     
     
     weight_root = "/mnt/wangxiaofa/original_qw/0806_exp+04_robotics_df100_full_ft_pizza_task_5_v2_wd_1e-10_w_aug"
-    
-    for step in range(3000, 10000, 500):
+    # weight_root = "/mnt/wangxiaofa/original_qw/0806_exp+04_robotics_df100_full_ft_pizza_task_5_v2_wd_1e-10_w_aug"
+    # weight_root = "/Data/lzl/qwen-pi0-ft-real"
+    for step in range(5000, 10000, 500):
         weight_path = os.path.join(weight_root, f"step{step}.pt")
         logger.info(f"Loading weights from {weight_path}")
         weights = torch.load(weight_path, map_location="cpu") 
+        # print(weights.keys())
         # 模型初始化
         policy = make_policy(
             cfg=cfg.policy,
