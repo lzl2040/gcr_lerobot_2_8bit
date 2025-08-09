@@ -15,6 +15,7 @@ GRADIENT_ACCUMULATION_STEPS=4
 BATCH_SIZE=10
 SAVE_FREQ=5000
 USE_LORA=false
+MAX_FRAME=3
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -75,6 +76,10 @@ while [[ $# -gt 0 ]]; do
             USE_LORA="$2"
             shift 2
             ;;
+        --max_frame)
+            MAX_FRAME="$2"
+            shift 2
+            ;;
         --save_freq)
             SAVE_FREQ="$2"
             shift 2
@@ -113,6 +118,7 @@ torchrun \
     lerobot/scripts/fsdp_train.py \
     --policy.type="qwen" \
     --policy.use_lora=$USE_LORA \
+    --policy.max_frame=$MAX_FRAME \
     --output_dir="$FIXED_OUTPUT_DIR" \
     --dataset.repo_id="whatever" \
     --dataset.image_transforms.enable=true \
