@@ -18,10 +18,10 @@ class QwenConfig(PreTrainedConfig):
     
     # Input / output structure.
     n_obs_steps: int = 1
-    chunk_size: int = 12
-    n_action_steps: int = 12
+    chunk_size: int = 50
+    n_action_steps: int = 50
     
-    max_frame: int = 3
+    max_frame: int = 1
     
     topk: int = 8
     # lora
@@ -73,7 +73,7 @@ class QwenConfig(PreTrainedConfig):
     # optimizer_beta2_decay: float = -0.8
     # optimizer_eps: tuple[float | None, float] = (None, 0.001)
     # optimizer_d: float = 1.0
-    optimizer_weight_decay: float = 1e-10
+    optimizer_weight_decay: float = 1e-5
     
     optimizer_eps: float = 1e-8
     optimizer_betas: tuple[float, float] = (0.9, 0.95)

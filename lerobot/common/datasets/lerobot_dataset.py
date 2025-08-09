@@ -831,31 +831,31 @@ class LeRobotDataset(torch.utils.data.Dataset):
         return self.num_frames
 
     def __getitem__(self, idx) -> dict:
-        need_skip = True
-        while need_skip:
-            item = self.hf_dataset[idx]
-            ep_idx = item["episode_index"].item()
-            if OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"] is not None:
-                primary_obs_key = f"""observation.images.{OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"]}"""
-            else:
-                primary_obs_key = "Zeus" #We can use any random key here,  as there will be no matching video
+        # need_skip = True
+        # while need_skip:
+        item = self.hf_dataset[idx]
+        ep_idx = item["episode_index"].item()
+        if OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"] is not None:
+            primary_obs_key = f"""observation.images.{OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"]}"""
+        else:
+            primary_obs_key = "Zeus" #We can use any random key here,  as there will be no matching video
+        
+        query_indices = None
+        if self.delta_indices is not None:
+            query_indices, padding = self._get_query_indices(idx, ep_idx)
+            query_result = self._query_hf_dataset(query_indices)
+            item = {**item, **padding}
+            for key, val in query_result.items():
+                item[key] = val
             
-            query_indices = None
-            if self.delta_indices is not None:
-                query_indices, padding = self._get_query_indices(idx, ep_idx)
-                query_result = self._query_hf_dataset(query_indices)
-                item = {**item, **padding}
-                for key, val in query_result.items():
-                    item[key] = val
-                
-                is_pad_tensor = padding[f"action_is_pad"]
-                total_true_count = is_pad_tensor.sum().item()
-                # print(total_true_count)
-                if total_true_count > 4:
-                    need_skip = True
-                    idx = random.randint(0, len(self.hf_dataset) - 1)
-                else:
-                    need_skip = False
+            is_pad_tensor = padding[f"action_is_pad"]
+            total_true_count = is_pad_tensor.sum().item()
+            # print(total_true_count)
+            # if total_true_count > 4:
+            #     need_skip = True
+            #     idx = random.randint(0, len(self.hf_dataset) - 1)
+            # else:
+            #     need_skip = False
 
         if len(self.meta.video_keys) > 0:
             current_ts = item["timestamp"].item()
@@ -1526,8 +1526,8 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
         # save_to_json(self.stats, os.path.join("/home/v-wangxiaofa/lzl/gcr_lerobot_2_fsdp/lerobot/stats", f"{cfg.data_mix}_stats.json"))
         save_to_json(self.stats, os.path.join("/mnt/wangxiaofa/original_qw", f"{cfg.data_mix}_stats.json"))
         # remove state
-        self.stats["observation.state"]["mean"][:] = 0
-        self.stats["observation.state"]["std"][:] = 1
+        # self.stats["observation.state"]["mean"][:] = 0
+        # self.stats["observation.state"]["std"][:] = 1
         
         print(f"Aggregated stats:{self.stats}")
         # update meta_features
@@ -1607,7 +1607,7 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
                 item = selected_dataset[selected_id]
                 item['dataset_name'] = dataset_name
             
-            item["observation.state"][:] = 1
+            # item["observation.state"][:] = 1
             
             data_dict = self._fetch_data_dict(item, image_obs_keys)
             
