@@ -448,6 +448,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         download_videos: bool = True,
         video_backend: str | None = None,
         dataset_name: str | None = None,
+        calvin_sub_task: int = 0
     ):
         """
         2 modes are available for instantiating this class, depending on 2 different use cases:
@@ -552,6 +553,14 @@ class LeRobotDataset(torch.utils.data.Dataset):
         """
         super().__init__()
         # print("__init__ 方法被调用")
+        # specific proess
+        if "calvin" in dataset_name:
+            self.train2test_json = os.path.join(root, "meta", "train2test.json")
+            import json 
+            with open(self.train2test_json, "r") as f:
+                self.train2test = json.load(f)[str(calvin_sub_task)]
+        else:
+            self.train2test = None
         self.repo_id = repo_id
         self.root = Path(root) if root else HF_LEROBOT_HOME / repo_id
         self.image_transforms = image_transforms
@@ -831,31 +840,42 @@ class LeRobotDataset(torch.utils.data.Dataset):
         return self.num_frames
 
     def __getitem__(self, idx) -> dict:
-        # need_skip = True
-        # while need_skip:
-        item = self.hf_dataset[idx]
-        ep_idx = item["episode_index"].item()
-        if OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"] is not None:
-            primary_obs_key = f"""observation.images.{OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"]}"""
-        else:
-            primary_obs_key = "Zeus" #We can use any random key here,  as there will be no matching video
-        
-        query_indices = None
-        if self.delta_indices is not None:
-            query_indices, padding = self._get_query_indices(idx, ep_idx)
-            query_result = self._query_hf_dataset(query_indices)
-            item = {**item, **padding}
-            for key, val in query_result.items():
-                item[key] = val
+        need_skip = True
+        while need_skip and self.train2test is not None:
+            item = self.hf_dataset[idx]
+            ep_idx = item["episode_index"].item()
+            if OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"] is not None:
+                primary_obs_key = f"""observation.images.{OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"]}"""
+            else:
+                primary_obs_key = "Zeus" #We can use any random key here,  as there will be no matching video
             
-            is_pad_tensor = padding[f"action_is_pad"]
-            total_true_count = is_pad_tensor.sum().item()
-            # print(total_true_count)
-            # if total_true_count > 4:
-            #     need_skip = True
-            #     idx = random.randint(0, len(self.hf_dataset) - 1)
-            # else:
-            #     need_skip = False
+            query_indices = None
+            if self.delta_indices is not None:
+                query_indices, padding = self._get_query_indices(idx, ep_idx)
+                query_result = self._query_hf_dataset(query_indices)
+                item = {**item, **padding}
+                for key, val in query_result.items():
+                    item[key] = val
+                
+                is_pad_tensor = padding[f"action_is_pad"]
+                total_true_count = is_pad_tensor.sum().item()
+                # judge by pad
+                # print(total_true_count)
+                # if total_true_count > 4:
+                #     need_skip = True
+                #     idx = random.randint(0, len(self.hf_dataset) - 1)
+                # else:
+                #     need_skip = False
+                # judge by task name
+                task_idx = item["task_index"].item()
+                task = self.meta.tasks[task_idx]
+                if task in self.train2test:
+                    new_task = self.train2test[task]
+                    if len(new_task) == 0:
+                        need_skip = True
+                        idx = random.randint(0, len(self.hf_dataset) - 1)
+                    else:
+                        need_skip = False    
 
         if len(self.meta.video_keys) > 0:
             current_ts = item["timestamp"].item()
@@ -876,7 +896,17 @@ class LeRobotDataset(torch.utils.data.Dataset):
 
         # Add task as a string
         task_idx = item["task_index"].item()
-        item["task"] = self.meta.tasks[task_idx]
+        task = self.meta.tasks[task_idx]
+        item["task"] = task
+        if self.train2test is not None:
+            new_task = self.train2test[task]
+            if new_task == "ok":
+                # If the task is "ok", we don't want to add it to the item
+                item["task"] = task
+            else:
+                item["task"] = new_task
+        
+        # print(f"task:{task}, new_task:{new_task}")
         item["dataset_name"] = self.dataset_name
 
         return item
@@ -1384,6 +1414,7 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
         self.cfg = cfg
         # set seed
         set_seed(seed)
+        # specific process
         # get sample weights
         mixture_spec = OXE_NAMED_MIXTURES[data_mix]
         included_datasets, sample_weights = [], []
@@ -1435,6 +1466,7 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
                     wrist_image_transforms=wrist_image_transforms,
                     video_backend=cfg.dataset.video_backend,
                     dataset_name=dataset_name,
+                    calvin_sub_task=cfg.dataset.calvin_sub_task,
                 )
                 self.datasets.append(dataset)
                 self.dataset_sizes.append(len(dataset))
@@ -1526,8 +1558,10 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
         # save_to_json(self.stats, os.path.join("/home/v-wangxiaofa/lzl/gcr_lerobot_2_fsdp/lerobot/stats", f"{cfg.data_mix}_stats.json"))
         save_to_json(self.stats, os.path.join("/mnt/wangxiaofa/original_qw", f"{cfg.data_mix}_stats.json"))
         # remove state
-        # self.stats["observation.state"]["mean"][:] = 0
-        # self.stats["observation.state"]["std"][:] = 1
+        self.use_state = cfg.policy.use_state
+        if self.use_state == False:
+            self.stats["observation.state"]["mean"][:] = 0
+            self.stats["observation.state"]["std"][:] = 1
         
         print(f"Aggregated stats:{self.stats}")
         # update meta_features
@@ -1607,7 +1641,8 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
                 item = selected_dataset[selected_id]
                 item['dataset_name'] = dataset_name
             
-            # item["observation.state"][:] = 1
+            if self.use_state == False:
+                item["observation.state"][:] = 1
             
             data_dict = self._fetch_data_dict(item, image_obs_keys)
             
@@ -1712,7 +1747,12 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
             action_std[:7] = self.stats["action"]["std"][:7]
             item["action"] = (item["action"] - action_mean) / (action_std + 1e-8)
         
+        # print("state:", item["observation.state"])
+        # print(f"primary:", item["observation.images.primary"])
+        # print(f"secondary:", np.array(item["observation.images.secondary"]))
+        # print(f"wrist:", np.array(item["observation.images.wrist"]))
         vl_item = self._prepare_data(item)
+        
         
         data_dict = {
             "source": item["source"],
@@ -1765,6 +1805,8 @@ class MultiDatasetforDistTraining(torch.utils.data.Dataset):
                 else:
                     logging.warning(f"Unexpected type for {key}: {type(item[key])}, from {item['source']}")
 
+        # print("Image", vision["image"])
+        # print("Video", vision["video"])
         return vision
 
     def _prepare_language(self, vision, item):

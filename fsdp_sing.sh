@@ -10,12 +10,15 @@ OPTIMIZER_DECAY_LR=2.5e-6
 SCHEDULER_WARMUP_STEPS=2000
 SCHEDULER_DECAY_STEPS=60000
 SCHEDULER_PLATFORM_STEPS=1
+WEIGHT_DECAY=1e-5
 PRETRAINED_PATH=""
 GRADIENT_ACCUMULATION_STEPS=4
 BATCH_SIZE=10
 SAVE_FREQ=5000
 USE_LORA=false
 MAX_FRAME=3
+CALVIN_SUB_TASK=0
+USE_STATE=true
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -68,6 +71,10 @@ while [[ $# -gt 0 ]]; do
             SCHEDULER_PLATFORM_STEPS="$2"
             shift 2
             ;;
+        --weight_decay)
+            WEIGHT_DECAY="$2"
+            shift 2
+            ;;
         --bs)
             BATCH_SIZE="$2"
             shift 2
@@ -78,6 +85,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --max_frame)
             MAX_FRAME="$2"
+            shift 2
+            ;;
+        --calvin_sub_task)
+            CALVIN_SUB_TASK="$2"
+            shift 2
+            ;;
+        --use_state)
+            USE_STATE="$2"
             shift 2
             ;;
         --save_freq)
@@ -135,6 +150,7 @@ torchrun \
     --policy.scheduler_platform_steps=$SCHEDULER_PLATFORM_STEPS \
     --policy.optimizer_lr=$OPTIMIZER_LR \
     --policy.scheduler_decay_lr=$OPTIMIZER_DECAY_LR \
+    --policy.optimizer_weight_decay=$WEIGHT_DECAY \ 
     --policy.train_main_layers=0 \
     --policy.freeze_vision_encoder=false \
     --policy.train_expert_only=false \

@@ -22,6 +22,7 @@ class QwenConfig(PreTrainedConfig):
     n_action_steps: int = 50
     
     max_frame: int = 1
+    use_state: bool = True
     
     topk: int = 8
     # lora
