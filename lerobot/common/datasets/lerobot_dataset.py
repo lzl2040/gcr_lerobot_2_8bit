@@ -841,7 +841,43 @@ class LeRobotDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx) -> dict:
         need_skip = True
-        while need_skip and self.train2test is not None:
+        if self.train2test is not None:
+            while need_skip:
+                item = self.hf_dataset[idx]
+                ep_idx = item["episode_index"].item()
+                if OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"] is not None:
+                    primary_obs_key = f"""observation.images.{OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"]}"""
+                else:
+                    primary_obs_key = "Zeus" #We can use any random key here,  as there will be no matching video
+                
+                query_indices = None
+                if self.delta_indices is not None:
+                    query_indices, padding = self._get_query_indices(idx, ep_idx)
+                    query_result = self._query_hf_dataset(query_indices)
+                    item = {**item, **padding}
+                    for key, val in query_result.items():
+                        item[key] = val
+                    
+                    is_pad_tensor = padding[f"action_is_pad"]
+                    total_true_count = is_pad_tensor.sum().item()
+                    # judge by pad
+                    # print(total_true_count)
+                    # if total_true_count > 4:
+                    #     need_skip = True
+                    #     idx = random.randint(0, len(self.hf_dataset) - 1)
+                    # else:
+                    #     need_skip = False
+                    # judge by task name
+                    task_idx = item["task_index"].item()
+                    task = self.meta.tasks[task_idx]
+                    if task in self.train2test:
+                        new_task = self.train2test[task]
+                        if len(new_task) == 0:
+                            need_skip = True
+                            idx = random.randint(0, len(self.hf_dataset) - 1)
+                        else:
+                            need_skip = False    
+        else:
             item = self.hf_dataset[idx]
             ep_idx = item["episode_index"].item()
             if OXE_DATASET_CONFIGS[self.dataset_name]["image_obs_keys"]["primary"] is not None:
@@ -856,27 +892,6 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 item = {**item, **padding}
                 for key, val in query_result.items():
                     item[key] = val
-                
-                is_pad_tensor = padding[f"action_is_pad"]
-                total_true_count = is_pad_tensor.sum().item()
-                # judge by pad
-                # print(total_true_count)
-                # if total_true_count > 4:
-                #     need_skip = True
-                #     idx = random.randint(0, len(self.hf_dataset) - 1)
-                # else:
-                #     need_skip = False
-                # judge by task name
-                task_idx = item["task_index"].item()
-                task = self.meta.tasks[task_idx]
-                if task in self.train2test:
-                    new_task = self.train2test[task]
-                    if len(new_task) == 0:
-                        need_skip = True
-                        idx = random.randint(0, len(self.hf_dataset) - 1)
-                    else:
-                        need_skip = False    
-
         if len(self.meta.video_keys) > 0:
             current_ts = item["timestamp"].item()
             query_timestamps = self._get_query_timestamps(current_ts, query_indices)
