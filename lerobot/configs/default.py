@@ -42,6 +42,7 @@ class DatasetConfig:
     sample_ratio: float = 1.0
     processor: str = "/mnt/wangxiaofa/qwen_params/Qwen2.5-VL-7B-Instruct/"
     parent_dir: str = "/mnt/wangxiaofa/robot_dataset/lerobot-format/"
+    calvin_sub_task: int | None = 0
 
 
 @dataclass
