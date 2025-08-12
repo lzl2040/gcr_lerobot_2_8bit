@@ -554,11 +554,12 @@ class LeRobotDataset(torch.utils.data.Dataset):
         super().__init__()
         # print("__init__ 方法被调用")
         # specific proess
-        if "calvin" in dataset_name:
+        if "calvin" in dataset_name and int(calvin_sub_task) >= 0:
             self.train2test_json = os.path.join(root, "meta", "train2test.json")
             import json 
             with open(self.train2test_json, "r") as f:
                 self.train2test = json.load(f)[str(calvin_sub_task)]
+                print()(f"Using calvin train2test mapping for sub-task {calvin_sub_task}: {self.train2test}")
         else:
             self.train2test = None
         self.repo_id = repo_id
@@ -892,6 +893,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 item = {**item, **padding}
                 for key, val in query_result.items():
                     item[key] = val
+        
         if len(self.meta.video_keys) > 0:
             current_ts = item["timestamp"].item()
             query_timestamps = self._get_query_timestamps(current_ts, query_indices)
