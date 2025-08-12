@@ -139,6 +139,7 @@ torchrun \
     --dataset.image_transforms.enable=true \
     --dataset.wrist_image_transforms.enable=false \
     --dataset.wrist_image_transforms.is_primary=false \
+    --dataset.calvin_sub_task=$CALVIN_SUB_TASK \
     --batch_size=$BATCH_SIZE \
     --gradient_accumulation_steps=$GRADIENT_ACCUMULATION_STEPS \
     --data_mix=$DATA_MIX \
@@ -148,9 +149,9 @@ torchrun \
     --policy.scheduler_warmup_steps=$SCHEDULER_WARMUP_STEPS \
     --policy.scheduler_decay_steps=$SCHEDULER_DECAY_STEPS \
     --policy.scheduler_platform_steps=$SCHEDULER_PLATFORM_STEPS \
+    --policy.optimizer_weight_decay=$WEIGHT_DECAY \
     --policy.optimizer_lr=$OPTIMIZER_LR \
     --policy.scheduler_decay_lr=$OPTIMIZER_DECAY_LR \
-    --policy.optimizer_weight_decay=$WEIGHT_DECAY \ 
     --policy.train_main_layers=0 \
     --policy.freeze_vision_encoder=false \
     --policy.train_expert_only=false \
