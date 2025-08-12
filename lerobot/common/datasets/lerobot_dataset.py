@@ -559,9 +559,9 @@ class LeRobotDataset(torch.utils.data.Dataset):
             import json 
             with open(self.train2test_json, "r") as f:
                 self.train2test = json.load(f)[str(calvin_sub_task)]
-                print(f"Using calvin train2test mapping for sub-task {calvin_sub_task}: {self.train2test}")
         else:
             self.train2test = None
+        print(f"Using calvin train2test mapping for sub-task {calvin_sub_task}: {self.train2test}")
         self.repo_id = repo_id
         self.root = Path(root) if root else HF_LEROBOT_HOME / repo_id
         self.image_transforms = image_transforms
