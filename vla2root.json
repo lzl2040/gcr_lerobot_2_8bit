@@ -41,6 +41,7 @@
     "simpler_fractal_sub2_plus": "simpler_fractal_sub2_plus", 
     "simpler_bridge" : "simpler_bridge_v3",
     "calvin_abc_d" : "calvin_task_ABC_D_training",
+    "calvin_abc_d_sub1" : "calvin_task_ABC_D_training_subset1",
     "calvin_abcd_d" : "calvin_task_ABCD_D_training",
     "pizza": "pizza",
     "pizza_task_5": "pizza_v9_task_5_0806_v2",
