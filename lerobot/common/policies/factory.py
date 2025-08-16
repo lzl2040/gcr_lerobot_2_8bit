@@ -183,11 +183,22 @@ def make_policy(
                 key_to_remove.append(k)
         for k in key_to_remove:
             del weights[k]
+            
+        new_state_dict = {}
+
+        for key, value in weights.items():
+            # 判断是否包含目标字段，并进行替换
+            if "compress_to_tgtdim_v2" in key:
+                new_key = key.replace("compress_to_tgtdim_v2", "compress_to_tgtdim")
+            else:
+                new_key = key
+            new_state_dict[new_key] = value
+        policy.load_state_dict(new_state_dict, strict=True)
         
         # weights = pad_state_dict_with_mask(weights, policy, prefix="model.paligemma_with_expert")
         # keys_to_ignore = ['model.paligemma_with_expert.kv_repre']
         # filtered_state_dict = {k: v for k, v in weights.items() if k not in keys_to_ignore}
-        policy.load_state_dict(weights, strict=True)
+        policy.load_state_dict(new_state_dict, strict=True)
         print(f"Load pt weights from:{weight_pt_path}")
         del weights
         del key_to_remove
