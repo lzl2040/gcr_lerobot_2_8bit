@@ -132,6 +132,7 @@ torchrun \
     --master_port=$MASTER_PORT \
     lerobot/scripts/fsdp_train.py \
     --policy.type="qwen" \
+    --policy.use_state=$USE_STATE \
     --policy.use_lora=$USE_LORA \
     --policy.max_frame=$MAX_FRAME \
     --output_dir="$FIXED_OUTPUT_DIR" \
