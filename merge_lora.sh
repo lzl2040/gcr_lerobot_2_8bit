@@ -9,7 +9,7 @@ python lerobot/scripts/merge_lora.py \
     --dataset.wrist_image_transforms.is_primary=false \
     --dataset.processor="/mnt/wangxiaofa/qwen_params/Qwen2.5-VL-7B-Instruct/" \
     --dataset.parent_dir="/mnt/wangxiaofa/robot_dataset/lerobot-format/" \
-    --data_mix="pizza_task_5" \
+    --data_mix="pizza_task_16_sep1" \
     --dataset.sample_ratio=5 \
     --output_dir="qwen_flow" \
     --batch_size=1 \
