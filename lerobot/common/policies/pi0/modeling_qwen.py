@@ -364,6 +364,9 @@ class QwenPolicy(PreTrainedPolicy):
         loss = losses.mean()
         # For logging
         loss_dict["l2_loss"] = loss.item()
+        
+        # loss_dict["gt"] = gt
+        # loss_dict["pred"] = pred
 
         return loss, loss_dict
     
@@ -566,7 +569,6 @@ class QwenPolicy(PreTrainedPolicy):
         return input_ids, attention_mask, pixel_values, image_grid_thw, pixel_values_videos, video_grid_thw, second_per_grid_ts
         
         # return inputs
-        
 
     def _pi_aloha_decode_state(self, state):
         # Flip the joints.
@@ -894,8 +896,10 @@ class QwenFlowMatching(nn.Module):
         # suffix_out = suffix_out.to(dtype=torch.float32)
         suffix_out = suffix_out.to(dtype=self.dtype)
         v_t = self.action_out_proj(suffix_out)
-
-        losses = F.mse_loss(u_t, v_t, reduction="none")
+        u_t = noise - actions
+        # losses = F.mse_loss(u_t, v_t, reduction="none")
+        losses = F.mse_loss(actions, noise - v_t, reduction="none")
+        # return losses, actions, noise - v_t
         return losses
 
     def sample_actions(self, images, img_masks, lang_tokens, lang_masks, state, noise=None) -> Tensor:
