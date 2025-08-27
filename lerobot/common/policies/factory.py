@@ -168,6 +168,8 @@ def make_policy(
     #     # Make a fresh policy.
     policy = policy_cls(**kwargs)
     print("training from scratch")
+    if "pizza" in cfg.resume:
+        policy.model.paligemma_with_expert.add_lora()
 
     if weight_pt_path:
         weights = torch.load(weight_pt_path, map_location="cpu")
@@ -204,7 +206,7 @@ def make_policy(
         del key_to_remove
     
     
-    if cfg.use_lora:
+    if cfg.use_lora and "pizza" not in cfg.resume:
         policy.model.paligemma_with_expert.add_lora()
     # policy.to(device)
     assert isinstance(policy, nn.Module)
