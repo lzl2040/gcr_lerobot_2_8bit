@@ -897,8 +897,8 @@ class QwenFlowMatching(nn.Module):
         suffix_out = suffix_out.to(dtype=self.dtype)
         v_t = self.action_out_proj(suffix_out)
         u_t = noise - actions
-        losses = F.mse_loss(u_t, v_t, reduction="none")
-        # losses = F.mse_loss(actions, noise - v_t, reduction="none")
+        # losses = F.mse_loss(u_t, v_t, reduction="none")
+        losses = F.mse_loss(actions, noise - v_t, reduction="none")
         # return losses, actions, noise - v_t
         return losses
 
