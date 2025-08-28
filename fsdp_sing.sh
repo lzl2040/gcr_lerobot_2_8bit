@@ -19,6 +19,7 @@ USE_LORA=false
 MAX_FRAME=3
 CALVIN_SUB_TASK=0
 USE_STATE=true
+LOSS_TYPE="raw"
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -95,6 +96,10 @@ while [[ $# -gt 0 ]]; do
             USE_STATE="$2"
             shift 2
             ;;
+        --loss_type)
+            LOSS_TYPE="$2"
+            shift 2
+            ;;
         --save_freq)
             SAVE_FREQ="$2"
             shift 2
@@ -135,6 +140,7 @@ torchrun \
     --policy.use_state=$USE_STATE \
     --policy.use_lora=$USE_LORA \
     --policy.max_frame=$MAX_FRAME \
+    --policy.loss_type=$LOSS_TYPE \
     --output_dir="$FIXED_OUTPUT_DIR" \
     --dataset.repo_id="whatever" \
     --dataset.image_transforms.enable=true \
