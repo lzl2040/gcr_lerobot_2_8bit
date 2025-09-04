@@ -903,7 +903,7 @@ class QwenFlowMatching(nn.Module):
             losses = F.l1_loss(actions, noise - v_t, reduction="none")
             # F.huber_loss()
         elif self.config.loss_type == "our_huber_loss":
-            losses = F.huber_loss(actions, noise - v_t, reduction="none", delta=1e-1)
+            losses = F.huber_loss(actions, noise - v_t, reduction="none", delta=self.config.huber_delta)
         else:
             losses = F.mse_loss(u_t, v_t, reduction="none")
         # losses = F.mse_loss(actions, noise - v_t, reduction="none")

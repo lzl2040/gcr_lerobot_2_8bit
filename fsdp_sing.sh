@@ -20,6 +20,7 @@ MAX_FRAME=3
 CALVIN_SUB_TASK=0
 USE_STATE=true
 LOSS_TYPE="raw"
+HUBER_DELTA=3e-1
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -108,6 +109,10 @@ while [[ $# -gt 0 ]]; do
             GRADIENT_ACCUMULATION_STEPS="$2"
             shift 2
             ;;
+        --huber_delta)
+            HUBER_DELTA="$2"
+            shift 2
+            ;;
         --pre_path)
             PRETRAINED_PATH="$2"
             shift 2
@@ -141,6 +146,7 @@ torchrun \
     --policy.use_lora=$USE_LORA \
     --policy.max_frame=$MAX_FRAME \
     --policy.loss_type=$LOSS_TYPE \
+    --policy.huber_delta=$HUBER_DELTA \
     --output_dir="$FIXED_OUTPUT_DIR" \
     --dataset.repo_id="whatever" \
     --dataset.image_transforms.enable=true \

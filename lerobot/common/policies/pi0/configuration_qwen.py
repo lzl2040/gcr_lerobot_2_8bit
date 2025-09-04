@@ -31,6 +31,7 @@ class QwenConfig(PreTrainedConfig):
     
     # loss_type
     loss_type: str = "raw"
+    huber_delta: float = 3e-2
 
     normalization_mapping: dict[str, NormalizationMode] = field(
         default_factory=lambda: {
