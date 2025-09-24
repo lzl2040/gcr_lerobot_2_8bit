@@ -21,6 +21,7 @@ CALVIN_SUB_TASK=0
 USE_STATE=true
 LOSS_TYPE="raw"
 HUBER_DELTA=3e-1
+KV_MASK_LR_MUL=10
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -101,6 +102,10 @@ while [[ $# -gt 0 ]]; do
             LOSS_TYPE="$2"
             shift 2
             ;;
+        --kv_mask_lr_mul):
+            KV_MASK_LR_MUL="$2"
+            shift 2
+            ;;
         --save_freq)
             SAVE_FREQ="$2"
             shift 2
@@ -140,7 +145,7 @@ torchrun \
     --node_rank=$NODE_RANK \
     --master_addr=$MASTER_ADDR \
     --master_port=$MASTER_PORT \
-    lerobot/scripts/fsdp_train.py \
+    lerobot/scripts/fsdp_train_0924.py \
     --policy.type="qwen" \
     --policy.use_state=$USE_STATE \
     --policy.use_lora=$USE_LORA \
@@ -169,6 +174,7 @@ torchrun \
     --policy.freeze_vision_encoder=false \
     --policy.train_expert_only=false \
     --policy.pretrained_path=$PRETRAINED_PATH \
+    --policy.kv_mask_optimizer_lr_mul=$KV_MASK_LR_MUL \
     --wandb.enable=true \
     --wandb.project="fsdq_qwen_pi0_ft" \
     --job_name="$JOB_NAME" \
