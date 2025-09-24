@@ -117,7 +117,12 @@ class CosineDecayWithWarmupSchedulerConfig(LRSchedulerConfig):
                 else:
                     return cosine_decay_schedule(current_step)
 
-        return LambdaLR(optimizer, lr_lambda, -1)
+        lr_lambdas = [
+            lr_lambda,            # 第一个组随余弦变化
+            lambda epoch: 1.0,        # 第二个组保持不变
+        ]
+        
+        return LambdaLR(optimizer, lr_lambdas, -1)
 
 
 def save_scheduler_state(scheduler: LRScheduler, save_dir: Path) -> None:

@@ -56,9 +56,14 @@ def get_policy_class(name: str) -> PreTrainedPolicy:
 
         return PI0Policy
     elif name == "qwen":
-        from lerobot.common.policies.pi0.modeling_qwen import QwenPolicy
+        # 存在kv mask不更新的bug
+        # from lerobot.common.policies.pi0.modeling_qwen import QwenPolicy
+        from lerobot.common.policies.pi0.modeling_qwen_0924_fix_mask_bug import QwenPolicy
         
         return QwenPolicy
+    elif name == "uni_token":
+        from lerobot.common.policies.uni_token.modeling_uni_token import UniTokenizerModel
+        return UniTokenizerModel
     else:
         raise NotImplementedError(f"Policy with name {name} is not implemented.")
 

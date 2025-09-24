@@ -20,7 +20,31 @@ from torch.optim.lr_scheduler import LRScheduler
 
 from lerobot.common.policies.pretrained import PreTrainedPolicy
 from lerobot.configs.train import TrainPipelineConfig
+import torch
 
+# kv mask会不更新
+# def make_optimizer_and_scheduler(
+#     cfg: TrainPipelineConfig, policy: PreTrainedPolicy
+# ) -> tuple[Optimizer, LRScheduler | None]:
+#     """Generates the optimizer and scheduler based on configs.
+
+#     Args:
+#         cfg (TrainPipelineConfig): The training config that contains optimizer and scheduler configs
+#         policy (PreTrainedPolicy): The policy config from which parameters and presets must be taken from.
+
+#     Returns:
+#         tuple[Optimizer, LRScheduler | None]: The couple (Optimizer, Scheduler). Scheduler can be `None`.
+#     """
+#     params = policy.get_optim_params() if cfg.use_policy_training_preset else policy.parameters()
+#     params = list(filter(lambda p: p.requires_grad, params))
+#     param_ids = set(id(p) for p in params)  # 所有 optimizer 参数的 id
+
+#     # for name, param in policy.named_parameters():
+#     #     if id(param) in param_ids and ("k_mask" in name or "v_mask" in name):
+#     #         print(f"{name} is included in optimizer params, {param.requires_grad}")
+#     optimizer = cfg.optimizer.build(params)
+#     lr_scheduler = cfg.scheduler.build(optimizer, cfg.steps) if cfg.scheduler is not None else None
+#     return optimizer, lr_scheduler
 
 def make_optimizer_and_scheduler(
     cfg: TrainPipelineConfig, policy: PreTrainedPolicy
@@ -34,8 +58,29 @@ def make_optimizer_and_scheduler(
     Returns:
         tuple[Optimizer, LRScheduler | None]: The couple (Optimizer, Scheduler). Scheduler can be `None`.
     """
-    params = policy.get_optim_params() if cfg.use_policy_training_preset else policy.parameters()
-    params = list(filter(lambda p: p.requires_grad, params))
+    
+    # name, params = policy.get_optim_params() if cfg.use_policy_training_preset else policy.named_parameters()
+    bf16_params = []
+    fp32_params = []
+    bf16_names = []
+    fp32_names = []
+    for name, param in policy.named_parameters():
+        if param.requires_grad:
+            if param.dtype == torch.bfloat16:
+                bf16_params.append(param)
+                bf16_names.append(name)
+            elif param.dtype == torch.float32:
+                fp32_params.append(param)
+                fp32_names.append(name)
+    
+    # bf16_params = list(filter(lambda p: p.requires_grad and p.dtype == torch.bfloat16, named_params.values()))
+    # fp32_params = list(filter(lambda p: p.requires_grad and p.dtype == torch.float32, named_params.values()))
+    # bf16_names = list(filter(lambda p: p.requires_grad and p.dtype == torch.bfloat16, named_params.keys()))
+    # fp32_names = list(filter(lambda p: p.requires_grad and p.dtype == torch.float32, named_params.keys()))
+    params = [
+        {"params": bf16_params, "dtype": torch.bfloat16, "lr": cfg.policy.optimizer_lr}, 
+        {"params": fp32_params, "dtype": torch.float32, "lr": cfg.policy.optimizer_lr * cfg.policy.kv_mask_optimizer_lr_mul}
+        ]
     optimizer = cfg.optimizer.build(params)
     lr_scheduler = cfg.scheduler.build(optimizer, cfg.steps) if cfg.scheduler is not None else None
-    return optimizer, lr_scheduler
+    return optimizer, lr_scheduler, bf16_names, fp32_names

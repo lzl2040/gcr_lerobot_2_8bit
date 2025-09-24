@@ -75,6 +75,7 @@ class QwenConfig(PreTrainedConfig):
 
     # Training presets
     optimizer_lr: float = 1e-4
+    kv_mask_optimizer_lr_mul: int = 10
     # optimizer_beta2_decay: float = -0.8
     # optimizer_eps: tuple[float | None, float] = (None, 0.001)
     # optimizer_d: float = 1.0
