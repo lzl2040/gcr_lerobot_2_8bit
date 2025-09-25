@@ -22,6 +22,7 @@ USE_STATE=true
 LOSS_TYPE="raw"
 HUBER_DELTA=3e-1
 KV_MASK_LR_MUL=10
+JOB_TYPE="pretrain"
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -110,6 +111,10 @@ while [[ $# -gt 0 ]]; do
             SAVE_FREQ="$2"
             shift 2
             ;;
+        --job_type)
+            JOB_TYPE="$2"
+            shift 2
+            ;;
         --gradient_acc)
             GRADIENT_ACCUMULATION_STEPS="$2"
             shift 2
@@ -162,6 +167,7 @@ torchrun \
     --gradient_accumulation_steps=$GRADIENT_ACCUMULATION_STEPS \
     --data_mix=$DATA_MIX \
     --save_freq=$SAVE_FREQ \
+    --job_type=$JOB_TYPE \
     --dataset.processor="/mnt/wangxiaofa/qwen_params/Qwen2.5-VL-7B-Instruct/" \
     --dataset.parent_dir="/mnt/wangxiaofa/robot_dataset/lerobot-format/" \
     --policy.scheduler_warmup_steps=$SCHEDULER_WARMUP_STEPS \

@@ -30,6 +30,7 @@ class TrainPipelineConfig(HubMixin):
     # with the same value for `dir` its contents will be overwritten unless you set `resume` to true.
     output_dir: Path | None = None
     job_name: str | None = None
+    job_type: str | None = None
     # Set `resume` to true to resume a previous run. In order for this to work, you will need to make sure
     # `dir` is the directory of an existing run with at least one checkpoint in it.
     # Note that when resuming a run, the default behavior is to use the configuration from the checkpoint,
@@ -55,7 +56,7 @@ class TrainPipelineConfig(HubMixin):
     log_freq: int = 100
     save_checkpoint: bool = True
     # Checkpoint is saved every `save_freq` training iterations and after the last training step.
-    save_freq: int = 5000
+    save_freq: int = 10
     use_policy_training_preset: bool = True
     optimizer: OptimizerConfig | None = None
     scheduler: LRSchedulerConfig | None = None
